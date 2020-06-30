@@ -1,1 +1,1 @@
-"# xss_blue" 
+# xss_blue
