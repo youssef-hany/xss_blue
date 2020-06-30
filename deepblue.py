@@ -430,7 +430,7 @@ class Deep:
 										break
 								else:
 									print("[Error]: Problem with sending input  " + str(e))
-									
+									break
 								continue
 														
 				try: 
@@ -471,6 +471,7 @@ class Deep:
 								break
 						else:
 							print("[Error]: Problem with submitting  " + str(e))
+							break
 						continue
 					noxx = print(Fore.RED + "\r[-] No XSS " + Style.RESET_ALL)
 					WebDriverWait(Deep.seleniumBrowser, 1).until(EC.alert_is_present(),noxx)
@@ -501,14 +502,13 @@ class Deep:
 									break
 							else:
 								print("[Error]: Problem with the alert" + str(e))
-								
+								break
 							continue
 					
 							
 				except Exception as e:
 					if "Error" in str(e):
 						print(str(e))
-						print("PUT A SHUTDOWN HERE")
 						Deep.CloseProgram()
 						break
 						# Deep.Update_Files()

@@ -1,5 +1,5 @@
 import concurrent.futures
-from multiprocessing import Process, current_process, cpu_count
+from multiprocessing import Process, current_process, cpu_count, Pool
 #import threading
 import queue
 from deepblue import Deep
@@ -30,13 +30,14 @@ print("""
             4) Spider (Recommended before Automated XSS)
 		""")
 CHOICE = input("[-] DXVS> ")
-NUMBER_OF_THREADS = ''
+NUMBER_OF_THREADS = 0
 SITE= ''
 q = queue.Queue()
 TFile = ''
 tested_linkL = set()
 processes = []
 results = []
+link_list = []
 #Do the next job(link) in the queue
 def work(page_url):
         SITE = page_url
@@ -102,16 +103,20 @@ def create_workers():
                     process.daemon = True
                     processes.append(process)
                     process.start()
+        # with Pool(NUMBER_OF_THREADS) as p:
+        #     if __name__ == "__main__":
+        #         p.map(work, link_list)
+
 
 
 def get_cpu_cap():
     count = cpu_count()
-    if count > 0:
-        NUMBER_OF_THREADS = count
+    if int(count) > 0:
         print(Fore.GREEN + f"[-]Found {count} CPU Cores!" + Style.RESET_ALL)
     else:
         print(Fore.RED + "[-] You have no Cores the program can thread on" + Style.RESET_ALL)
         sys.exit(0)
+    return(count)
 
 def check_kill_process(pstring):
     for line in os.popen("ps ax | grep " + pstring + " | grep -v grep"):
@@ -130,13 +135,16 @@ def getFormLinks():
     queued_links = file_to_set(QUEUE_FILE)
     tested_links = file_to_set(TESTED_FILE)
     if len(queued_links) > 0:
-        print('[-]' + str(len(queued_links)) + ' Queued Form pages')
+        print(Fore.BLUE + f'[-] Can Fuzz {NUMBER_OF_THREADS} Links Concurrently..' + Style.RESET_ALL)
+        print('[-] ' + str(len(queued_links)) + ' Queued links To Fuzz')
+        
         
         
         for link in queued_links:
             if link not in tested_links:             
                 try:
                     q.put(link)  
+                    link_list.append(link)
                     # with concurrent.futures.ProcessPoolExecutor(max_workers=NUMBER_OF_THREADS) as executor:
                     #     executor.submit(work, link)   
                 except Exception as e:
@@ -165,7 +173,7 @@ elif CHOICE.lower() == "3":
     TFILE = input ("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
     PROJECT_NAME = input ("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
     MODE = 'hl'
-    get_cpu_cap()
+    NUMBER_OF_THREADS = get_cpu_cap()
     getFormLinks()
     create_workers()
     while len(processes):
