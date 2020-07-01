@@ -18,7 +18,7 @@ try:
     os.system("cls")
 except:
     os.system("clear")
-print(Fore.GREEN + "XSS Detector " + Style.RESET_ALL + "[Deep Blue]  By" + Fore.RED + " - J-Odin -" + Style.RESET_ALL)
+print(Fore.GREEN + "XSS Detector " + Style.RESET_ALL + "[- Deep Blue -]  By" + Fore.RED + " (J-0d1N) " + Style.RESET_ALL)
 print("""
         Welcome to the Deep XSS Vulnerability Scanner """ +
         Fore.GREEN+' (DXVS)\n' + Style.RESET_ALL +
@@ -30,6 +30,8 @@ print("""
             4) Spider (Recommended before Automated XSS)
 		""")
 CHOICE = input("[-] DXVS> ")
+
+
 NUMBER_OF_THREADS = 0
 SITE= ''
 q = queue.Queue()
@@ -38,8 +40,10 @@ tested_linkL = set()
 processes = []
 results = []
 link_list = []
+
 #Do the next job(link) in the queue
 def work(page_url):
+
         SITE = page_url
         MODE = 'hl'
         PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
@@ -99,6 +103,7 @@ def create_workers():
             if link and link not in tested_linkL:
                 tested_linkL.add(link)
                 if __name__ == "__main__":
+                    signal.signal(signal.SIGINT, signal_handler)
                     process = Process(target=work,args=(link,))
                     process.daemon = True
                     processes.append(process)
@@ -125,9 +130,18 @@ def check_kill_process(pstring):
         os.kill(int(pid), signal.SIGKILL)
 
 def terminate_workers():
-    for worker in processes:
-        worker.terminate()
+    if len(processes):
+        for worker in processes:
+            worker.terminate()
 
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    print('Closing the browser drivers and cleaning up the application!')
+    check_kill_process("firefox-esr")#killing processes to ensure that they are not run in bg
+    check_kill_process("geckodriver")#because seleniumDriver.quit() doesnt always close it idk why
+    terminate_workers()
+    Deep.CloseProgram()
+    sys.exit(0)
 # Each link in queue is a new job
 def getFormLinks():
     QUEUE_FILE = PROJECT_NAME + '/form_links.txt'
@@ -167,11 +181,12 @@ elif CHOICE.lower() == '2':
     MODE = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
     Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
 
+
 #AUTOMATIC FUZZING
 elif CHOICE.lower() == "3":
     result = []
-    TFILE = input ("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
-    PROJECT_NAME = input ("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
+    TFILE = input("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
+    PROJECT_NAME = input("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
     MODE = 'hl'
     NUMBER_OF_THREADS = get_cpu_cap()
     getFormLinks()
@@ -193,7 +208,6 @@ elif CHOICE.lower() == "3":
                     check_kill_process("firefox-esr")#killing processes to ensure that they are not run in bg
                     check_kill_process("geckodriver")#because seleniumDriver.quit() doesnt always close it idk why
                 break
-       
 
 
 #SPIDER
