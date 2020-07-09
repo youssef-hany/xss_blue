@@ -25,7 +25,7 @@ The program will keep fuzzing until it finds 5 unique payloads or will just fini
 ## Difference between other XSS programs
 As there are some XSS programs that work well. However, most of the programs just dont always work right. And if they do work they dont always get the payload even if it is really vulnerable. Moreover, if a website loads Dynamically other XSSers will not be able to pick up the form data after render so will not be able to fuzz. XSS BLUE, have overcome this hardship by using dynamic javascript rendering, we first render the page and scroll through it to make sure all elements apear.
 
-## Side Notes
+### Side Notes
 This is just a beta version so it may have many issues and bugs. But over time my hope is that it improves alot to become the best and most reliable XSS Vulnerability Testing program
 
 ------------------
