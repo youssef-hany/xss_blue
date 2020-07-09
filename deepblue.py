@@ -7,6 +7,9 @@ import requests
 import time
 import sys
 import signal
+import json
+from stem import Signal
+from stem.control import Controller
 import colorama
 from colorama import Fore, Back, Style
 from selenium import webdriver
@@ -41,10 +44,13 @@ class Deep():
 	formdata = dict()
 	Wpayloads = []
 	working_payloads = ''
+	session = ''
 	header = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1'}
-	
-
-	
+	globalLine = ''
+	html_element = ''
+	attrib = ''
+	identifier = ''
+	learn_data = []
 	def __init__(self, choice, site, mode, project_name, Wfile, ThreadName="Master Thread"):
 
 			Deep.choice = choice
@@ -82,7 +88,7 @@ class Deep():
 				print('Closing the browser drivers and cleaning up the application!')
 				Deep.CloseProgram()
 				sys.exit(1)
-				
+			pass	
 				
 
 		except KeyboardInterrupt:
@@ -126,7 +132,8 @@ class Deep():
 		Deep.Fuzz_URL_On_Thread()
 
 		print("[-] Finished fuzzing the input...")
-		Deep.Print_Results()
+		#print(Deep.learn_data)
+		list_to_file(Deep.learn_data, "learn_data.csv")
 		# if Deep.found > 0:
 
 		# 	print(Fore.GREEN + """ 
@@ -151,13 +158,25 @@ class Deep():
 
 		try:
 			print("[-] Testing URL: " + site)
-
-			r = requests.get(site, headers=Deep.header)
+			Deep.session = requests.session()
+			Deep.session.proxies = {'http':'socks5://127.0.0.1:9050',
+								'https': 'socks5://127.0.0.1:9050'}
+			r = Deep.session.get(site, headers=Deep.header)
 			html_text = r.text
-			
+			#Deep.session.close()
+			html_session = HTMLSession()
+			resp = html_session.get(Deep.site)
+			resp.html.render(timeout=30) #loading js in website before taking html for dynamic rendering purposes
+			soupParser = BeautifulSoup(resp.html.html, 'html.parser') # dynamic rendering loaded
+			resp.session.close()
+			tor_ip = json.loads(Deep.session.get("http://httpbin.org/ip").text)
+			real_ip = json.loads(requests.get("http://httpbin.org/ip").text)
+			print(Fore.BLUE + Style.BRIGHT + "[INFO] TOR IP(Anonymous): " + tor_ip["origin"] + Style.RESET_ALL)
+			print(Fore.RED + "[INFO] Real IP: " + real_ip["origin"] + Style.RESET_ALL)
 			print("[-] Selenium settings set...")
 			options = FirefoxOptions()
 			browserHeadOp = mode
+			#options.add_argument("--disable-notifications")
 			if browserHeadOp:
 				if(browserHeadOp.lower() == "h"):
 					pass #doNothing because it launched head by default
@@ -168,22 +187,17 @@ class Deep():
 					browserHeadOp = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
 			else:
 				options.add_argument("--headless")
-			session = HTMLSession()
-			resp = session.get(Deep.site)
-			resp.html.render() #loading js in website before taking html for dynamic rendering purposes
-			soupParser = BeautifulSoup(resp.html.html, 'html.parser') # dynamic rendering loaded
-			resp.session.close()
-			#page_source = seleniumBrowser.execute_script("return document.body.innerHTML") #after load of js
-			#soupParser = BeautifulSoup(page_source, 'html.parser')
+		
 			print(Fore.GREEN + '[-] POST environment is ready' + Style.RESET_ALL)
-			forms = soupParser.find_all('html')
+			Deep.html_element = soupParser.find_all('html')
 			fcnt = 0
 			fields= []
-			formdata = []
+			formdata = set()
 			ptrForms = []
 			if r.text:
-				print(Fore.GREEN + "[-] The site is Live!" + Style.RESET_ALL)
-			for form in forms:
+				print("[-] Website State: " + Fore.GREEN +  "Live!" + Style.RESET_ALL)
+			#Deep.renew_tor_ip() #renewing the ip
+			for form in Deep.html_element:
 				fcnt += 1
 				inputs = form.find_all('input')
 				textareas = form.find_all('textarea')
@@ -199,11 +213,13 @@ class Deep():
 						#print(i)
 						if "submit" not in str(i) and "hidden" not in str(i) and "action" not in str(i):
 							#inputName = i.get('name')
-							formdata.append((i.get('name'), i.get('value')))
+							formdata.add((i.get('name'), i.get('value')))
+				
 				print(Fore.GREEN + "[-] Found data fields to work with" + Style.RESET_ALL)
+				print(Fore.CYAN + f"[INFO] Fields to be populated --> {formdata}" + Style.RESET_ALL)
 				print("[-] Launching Selenium")
 				Deep.seleniumBrowser = webdriver.Firefox(options=options)
-				Deep.seleniumBrowser.get(site)
+			
 				print("[-] Selenium Launched !")
 			
 				
@@ -216,107 +232,51 @@ class Deep():
 				
 			Deep.formdata = dict(formdata)
 		except Exception as e:
+			if "Network is unreachable" in str(e):
+				print(Fore.RED + f"[-] [{Deep.ThreadName}] Website Is Unreachable O.O!" + Style.RESET_ALL)
+				Deep.CloseProgram()
 			if "Failed to establish a new connection" in str(e):
 				#print(e)
 				print(Fore.RED + f"[-] [{Deep.ThreadName}] Check Internet Connection!" + Style.RESET_ALL)
 				Deep.CloseProgram()
 			else:	
+				print(e)
 				print(Fore.RED + f"[-] [{Deep.ThreadName}] No response from url {Deep.site}" + Style.RESET_ALL)
 			#try another thing here before exit
 			if Deep.current_executor:
 				Deep.current_executor.shutdown()
-				Deep.CloseProgram()
+			Deep.CloseProgram()
 			
 
 		print()
 		try:
 			if not Deep.payloads:
-				# Deep.payloads = list(file_to_set(Deep.Wfile))
-				# Deep.payloads.reverse()
-				Deep.payloads = open(Deep.Wfile, 'rt')
+				Deep.payloads = list(file_to_set(Deep.Wfile))
+				Deep.payloads.reverse()
+			# if not Deep.payloads:
+			# 	Deep.payloads = open(Deep.Wfile, 'rt')
+			# 	Deep.payloads = list(Deep.payloads)
+		
 
 		except FileNotFoundError:
 			print(Fore.RED + "[-] The file " + file + " doesn't exist in specified location!" + Style.RESET_ALL)
 			Deep.seleniumBrowser.quit()	
 			Deep.CloseProgram()
 
-		#print(Fore.GREEN + f"[-] [{Deep.ThreadName}] Testing with {len(Deep.payloads)} payloads.... \n"+ Style.RESET_ALL)
+		print(Fore.GREEN + f"[-] [{Deep.ThreadName}] Testing with {len(Deep.payloads)} payloads.... \n"+ Style.RESET_ALL)
 		try:
-
+			Deep.seleniumBrowser.get(Deep.site)
 			Deep.working_payloads = Deep.Fuzz_On_Thread()
-
 			Deep.Print_Results()
+			#print(Deep.learn_data)
+			list_to_file(Deep.learn_data, "learn_data.csv")
+			Deep.CloseProgram()
 		except Exception as e:
-			print(e)
+			#print(e)
+			Deep.CloseProgram()
 			
 
-		# for line in payloads:
-		# 	time.sleep(1)
-		# 	Deep.counter += 1
-		# 	print("[-] Testing payload: F(" + str(Deep.found)+") C("+ str(Deep.counter) + ")"  + str(line.rstrip()))
-		# 	print(formdata)
-		# 	for fd in formdata:
-		# 		if str(fd) != "None" and str(fd) != "action" and str(fd) != "hidden":
-		# 			time.sleep(1)
-		# 			try:
-		# 				selector = seleniumBrowser.find_element_by_name(fd)
-		# 				selector.clear()
-		# 				selector.send_keys(line)
-		
-		# 			except:
-		# 				print(f"[-] Could not send input at {fd} no problems..")
-		# 				continue
-		# 	try: 
-		# 		for f in ptrForms:
-		# 			inputs = f.find_all("input")
-		# 			for i in inputs:
-		# 				if "submit" in str(i):
-		# 					identifier = i.get("id")
-		# 					attrib = "id"
-		# 					if identifier == None:
-		# 						attrib = "class"
-		# 						identifier = i.get("class")[0]
-							
-
-		# 		try:
-		# 			time.sleep(3)
-		# 			if attrib == "class":
-		# 				submit = seleniumBrowser.find_element_by_class_name(identifier)
-		# 				submit.click()
-		# 			elif attrib == "id":
-		# 				submit = seleniumBrowser.find_element_by_id(identifier)
-		# 				submit.click()
-		# 		except:
-		# 			pass
-		# 		WebDriverWait(seleniumBrowser, 1).until(EC.alert_is_present(), Fore.RED + "[-] No XSS" + Style.RESET_ALL)
-		# 		try:
-		# 			if seleniumBrowser:
-		# 				alert = seleniumBrowser.switch_to.alert
-		# 				time.sleep(1)
-		# 				alert.accept()
-		# 		except:
-		# 			if seleniumBrowser:
-		# 				if alert:
-		# 						alert.dismiss()
-		# 		print(Fore.BLUE + "[-] Alert Accepted" + Style.RESET_ALL)
-		# 		if alert:
-		# 			Deep.found+=1
-		# 			print(Fore.GREEN + "[-] XSS FOUND !" + Style.RESET_ALL)
-		# 			print(Fore.GREEN + "[-] Payload: "+ str(line) + Style.RESET_ALL)
-		# 			print(Fore.BLUE + "[-] Number of available payloads until now: " + str(Deep.found) + "\n"  + Style.RESET_ALL)
-		# 			seleniumBrowser.get(r.url)
-		# 			seleniumBrowser.refresh()
-		# 			if Deep.found >= 2:
-		# 				print("[-] 2 XSS Payloads have been found, time to stop now :)")
-		# 				seleniumBrowser.quit()	
-		# 				Deep.CloseProgram()
-		# 				break
-
-		# 	except Exception as e:
-		# 		seleniumBrowser.get(r.url)
-		# 		seleniumBrowser.refresh()
-		# 		print(e)
-		# 		continue
+	
 
 
 	@staticmethod
@@ -328,17 +288,27 @@ class Deep():
 			try:
 				
 				print("[-] [{}] Testing URL: ".format(Deep.ThreadName) + Deep.site)
-				Deep.form_links.remove(Deep.site)	
+				
+				#Deep.form_links.remove(Deep.site)	
 				Deep.form_links_testing.add(Deep.site)
-				Deep.form_links_tested.add(Deep.site)
-				r = requests.get(Deep.site, headers=Deep.header)
-				session = HTMLSession()
-				resp = session.get(Deep.site)
+				Deep.form_links_tested.add(Deep.site)	
+				Deep.session = requests.session()
+				Deep.session.proxies = {'http':'socks5://127.0.0.1:9050',
+									'https': 'socks5://127.0.0.1:9050'}
+				r = Deep.session.get(Deep.site, headers=Deep.header)
 				html_text = r.text
-				resp.html.render()
-				soupParser = BeautifulSoup(resp.html.html, 'html.parser')
+				#Deep.session.close()
+				html_session = HTMLSession()
+				resp = html_session.get(Deep.site)
+				resp.html.render(timeout=30) #loading js in website before taking html for dynamic rendering purposes
+				soupParser = BeautifulSoup(resp.html.html, 'html.parser') # dynamic rendering loaded
 				resp.session.close()
-				print("[-] [{}] Selenium settings set...".format(Deep.ThreadName))
+				tor_ip = json.loads(Deep.session.get("http://httpbin.org/ip").text)
+				real_ip = json.loads(requests.get("http://httpbin.org/ip").text)
+				print(Fore.BLUE + Style.BRIGHT + "[INFO] TOR IP(Anonymous): " + tor_ip["origin"] + Style.RESET_ALL)
+				print(Fore.RED + "[INFO] Real IP: " + real_ip["origin"] + Style.RESET_ALL)
+				#ip stuff should be here but instead it is in main to be run only once before all Processes
+				print("[-] Selenium settings set...")
 				options = FirefoxOptions()
 				browserHeadOp = mode
 				if browserHeadOp:
@@ -352,13 +322,11 @@ class Deep():
 						browserHeadOp = ("--headless")
 				else:
 					options.add_argument("--headless")
-				print("[-] Launching Selenium..." )
-				Deep.seleniumBrowser = webdriver.Firefox(options=options)
-				print("[-] Website State: " + Fore.GREEN +  "Live!" + Style.RESET_ALL)
-				print(Fore.GREEN + "[-] Selenium Successfully launched!" + Style.RESET_ALL)
-				
+
+				if r.text:
+					print("[-] Website State: " + Fore.GREEN +  "Live!" + Style.RESET_ALL)
 				print(Fore.GREEN + f"[-] [{Deep.ThreadName}] POST environment is ready" + Style.RESET_ALL)
-				forms = soupParser.find_all('form')
+				forms = soupParser.find_all('html')
 				fcnt = 0
 				fields= []
 				formdata = []
@@ -377,19 +345,19 @@ class Deep():
 						Deep.ptrForms.append(form)
 
 				if len(fields) > 1:
-					try:
-						Deep.seleniumBrowser.get(r.url)
-					except Exception as e:
-						print(e)
-					print(Fore.GREEN + f"[-] [{Deep.ThreadName}] Found data fields to work with"+ Style.RESET_ALL)
 					for field in fields:
 						for i in field:
+							#print(i)
 							if "submit" not in str(i) and "hidden" not in str(i) and "action" not in str(i):
-    						# 		inputName = i.get("name")
-							# 	if inputName == "None":
-							# 		inputName = i.get("id")
-							#check here for the none type
+								#inputName = i.get('name')
 								formdata.append((i.get('name'), i.get('value')))
+
+					print(Fore.GREEN + "[-] Found data fields to work with" + Style.RESET_ALL)
+					print(Fore.CYAN + f"[INFO] Fields to be populated --> {formdata}" + Style.RESET_ALL)
+					print("[-] Launching Selenium")
+					Deep.seleniumBrowser = webdriver.Firefox(options=options)
+				
+					print(Fore.GREEN + "[-] Selenium Successfully launched!" + Style.RESET_ALL)
 				else:
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] No data fields found could not execute Thread will exit!" + Style.RESET_ALL)			
 					Deep.form_links.remove(Deep.site)
@@ -398,18 +366,22 @@ class Deep():
 					
 				Deep.formdata = dict(formdata)
 			except Exception as e:
+				print(e)
+				if "Network is unreachable" in str(e):
+					print(Fore.RED + f"[-] [{Deep.ThreadName}] Website Is Unreachable O.O!" + Style.RESET_ALL)
+					Deep.CloseProgram()
 				if "Failed to establish a new connection" in str(e):
-					print(e)
+					#print(e)
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] Check Internet Connection!" + Style.RESET_ALL)
 					Deep.CloseProgram()
 				else:	
+					print(e)
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] No response from url {Deep.site}" + Style.RESET_ALL)
 				#try another thing here before exit
 				if Deep.current_executor:
 					Deep.current_executor.shutdown()
 				Deep.CloseProgram()
 			
-			print()
 			try:
 				if not Deep.payloads:
 					Deep.payloads = list(file_to_set(Deep.Wfile))
@@ -421,20 +393,24 @@ class Deep():
 			print(Fore.GREEN + f"[-] [{Deep.ThreadName}] Testing with {len(Deep.payloads)} payloads.... \n"+ Style.RESET_ALL)
 			
 			Deep.working_payloads = Deep.Fuzz_On_Thread()
+			#print(Deep.learn_data)
+			list_to_file(Deep.learn_data, "learn_data.csv")
 			
 
 	@staticmethod
 	def Fuzz_URL():
+		resume = False
 		for line in Deep.payloads:
 			time.sleep(.5)
 			Deep.counter += 1
-			print("[-] Testing payload [F(" + str(Deep.found)+") C("+ str(Deep.counter) + ")]: " + line.rstrip())
-			if Deep.found >= 5: #can make user decide that number later
+			print(f"[-] Testing payload [F({Deep.found}) C({Deep.counter})/({len(Deep.payloads)})]: " + line.rstrip())
+			if Deep.found >= 1 and not resume: #can make user decide that number later
 				print(f"[-] Found {Deep.found} working payloads still want to continue fuzzing?")
 				response = input("[-] Y/N [Default:N]: ")
-				if response.lower == "y":
+				if response.lower().startswith("y"):
+					resume = True
 					print("[-] Continuing...")
-					continue
+					pass
 				else:
 					Deep.CloseProgram()
 					break
@@ -442,6 +418,7 @@ class Deep():
 				text = requests.get(Deep.site + line, headers=Deep.header).text
 			except:
 				print("[-] Could not get website text after Testing")
+				Deep.seleniumBrowser.refresh()
 				continue
 			if line in text:
 				#up until here it will be found in the page text but this gives false positives
@@ -455,16 +432,18 @@ class Deep():
 					if alert:
 						Deep.found += 1
 						Deep.Wpayloads.append(line)
+						Deep.learn_data.append((line, text.replace("\n", "").rstrip("\n"), 2))
 						print(Fore.GREEN + f"[-] XSS FOUND: {Deep.site}{line}" + Style.RESET_ALL)
 						print(Fore.BLUE + f"[-] Number of available payloads until now: {Deep.found} \n"  + Style.RESET_ALL)
 						
 				except Exception as e:
 					print(e)
+					Deep.learn_data.append((line, text.replace("\n", "").rstrip("\n"), 1))
 					continue
 			else:
 				#this also could be a false positive in some cases so should be resolved
 				print(Fore.RED + "[-] NO XSS" + Style.RESET_ALL)
-
+				Deep.learn_data.append((line, text.replace("\n", "").rstrip("\n"), 0))
 
 	@staticmethod
 	def Fuzz_Inputs():
@@ -473,156 +452,155 @@ class Deep():
 				# Deep.payloads = ''
 				# Deep.payloads = open(Deep.Wfile, "r")
 				for line in Deep.payloads:
+					Deep.globalLine = line
+					try:
+						Deep.text = requests.get(Deep.site, headers=Deep.header).text
+						Deep.text = Deep.text.replace("\n", "")
+						Deep.seleniumBrowser.get(Deep.site)
+					except:
+						print(f"[-] [{Deep.site}] [{Deep.ThreadName}] Could not get website text after Testing")
+						continue
+					
 					#time.sleep(1) was here to prevent site from blocking or crashing
 					Deep.counter += 1
+					if Deep.counter % 15 == 0:
+						Deep.renew_tor_ip()
+					
+					
 					if Deep.Check_If_Found(5):
+						Deep.CloseProgram()
 						break
-					print(Fore.CYAN +  f"[-] [{Deep.site}] [{Deep.ThreadName}] Instance Info: F({str(Deep.found)}) C({str(Deep.counter)})" + Fore.GREEN + " Testing Payload: " + Fore.MAGENTA + f" {str(line.rstrip())} " + Style.RESET_ALL)
+					print(Fore.CYAN +  f"[-] [{Deep.site}] [{Deep.ThreadName}] Instance Info: F({str(Deep.found)}) C({str(Deep.counter)})/({len(Deep.payloads)})" + Fore.GREEN + " Testing Payload: " + Fore.MAGENTA + f" {str(line.rstrip())} " + Style.RESET_ALL)
 					try:
 						alert = Deep.seleniumBrowser.switch_to.alert
 						if alert:
 							alert.accept()
-							print(Fore.RED + Style.BRIGHT + f"[-] [{Deep.site}] Alert accepted before load. This indicates signs of Stored XSS check manually! is it a comment input for Ex?" + Style.RESET_ALL)
+							print(Fore.RED + Style.BRIGHT + f"[-] [{Deep.site}] Alert accepted on page load/reload. This indicates signs of Stored XSS check manually! is it a comment section?" + Style.RESET_ALL)
+							Deep.CloseProgram()
 							break
 					except Exception as e:
 						try:
 							alert = Deep.seleniumBrowser.switch_to.alert
 							if alert:
 								alert.dismiss()
-								print(Fore.RED + "[-] There is a persistent alert in the page. may be because of Stored XSS !" + Style.RESET_ALL)
+								print(Fore.RED + "[-] [{Deep.site}] [{Deep.ThreadName}] There is a persistent alert in the page. may be because of Stored XSS !" + Style.RESET_ALL)
+								Deep.CloseProgram()
 								break
 						except:
 							pass
-
+					print(Fore.CYAN + "[INFO] Populating data fields..." + Style.RESET_ALL)
 					for fd in list(Deep.formdata):
 						if Deep.seleniumBrowser:
 							try:
 								if str(fd) != "None" and str(fd) != "action" and str(fd) != "hidden":
 									selector = Deep.seleniumBrowser.find_element_by_name(fd)
-									selector.clear()
 									selector.send_keys(line)
-									time.sleep(.5)
+									time.sleep(.5)																		
 									reselector = Deep.seleniumBrowser.find_element_by_name(fd)
-							except Exception as e:
-								print(e)
-								if "Unable to locate element" in str(e):
-									print(Fore.YELLOW + f"[-] Could not Reselect element after adding input possible Stored XSS at element with Name={fd}" + Style.RESET_ALL)
-										
-								else:
-									#Deep.formdata.pop(fd, None)
-									continue
-									#print(f"[Info] Could not send input at element name={fd}, No problems..")
-								continue
-					
-								
-									# if "dialog" in str(e): 	#This checks for when multiple alerts are triggered the firefox sends another type of alert
-									# 						#The other alert has a check box if you want to disable alerts from this website
-									# 	print(Fore.LIGHTRED_EX +  f"[-] Probably Reflected XSS is present on this URL {Deep.site}" +Style.RESET_ALL)
-									# 	if Deep.Check_If_Found(5):
-									# 		break
-									# else:
-									# 	if selector:
-									# 		print(Fore.YELLOW + f"[-] Could not Reselect element after adding input possible Static XSS at element with Name={fd}" + Style.RESET_ALL)
-									# 	else:
-									# 		print(f"[Error]: Problem with sending input  {fd}" + str(e))
+									page_source = Deep.seleniumBrowser.page_source
+									if line in str(page_source):
+										print(Fore.YELLOW + f"[-] [{Deep.site}] [{Deep.ThreadName}] Payload reflects Dynamically(Directly on typing) in the page without being filered {line}" + Style.RESET_ALL)		
+										Deep.learn_data.append((line, page_source.replace("\n", "").rstrip("\n"), 1))
 
-									# 	# try:
-									# 	# 	data.pop(fd)
-									# 	# 	print(data)
-									# 	# except Exception as e:
-									# 	# 	print(e)
-											
-									# 	#dat.pop(fd, None)
-																							
+							except Exception as e:
+								if "Unable to locate element" in str(e):
+									print(Fore.BLUE + f"[-] [{Deep.site}] [{Deep.ThreadName}] Could not Reselect element after adding input, maybe injectable element with Name={fd} with payload: {line}" + Style.RESET_ALL)
+									pass
+								elif "alert" in str(e).lower():
+									try:
+										print(Fore.GREEN + f"[-] [{Deep.site}] [{Deep.ThreadName}] Probable Stored/Dynamic XSS in the page. check {line} !" + Style.RESET_ALL)
+										Deep.learn_data.append((line, Deep.text.replace("\n", "").rstrip("\n"), 2))
+										# noxx = print(Fore.RED + "\r[-] No Dynamic XSS " + Style.RESET_ALL)
+										# WebDriverWait(Deep.seleniumBrowser, 1).until(EC.alert_is_present(),noxx)
+										if Deep.accept_alert():
+											continue
+									except Exception as e:
+										print("[-] Could not Accept alert" + str(e))
+										Deep.seleniumBrowser.get(Deep.site)
+										Deep.seleniumBrowser.refresh()
+										continue
+
+										
+
+								
+
+						else:
+							print("[-] No selenium Browser operating")
 					try: 
-						attrib = ''
-						for f in Deep.ptrForms:
-							inputs = f.find_all("input")
-							for i in inputs:
-								if "submit" in str(i):
-									attrib = "id"
-									identifier = i.get("id")
-									if identifier == None:
-										attrib = "class"
-										identifier = i.get("class")[0]
-										if identifier == None:
-											attrib = "name"
-											identifier = i.get("name")[0]
-											if identifier == None:
-												attrib = "type"
-												identifier = i.get("type")[0]
-									
+						try:
+							Deep.get_submit_input_tag()
+							
+						except Exception as e:
+							print(e)
 
 						try:
-							if attrib == "class":
-								submit = Deep.seleniumBrowser.find_element_by_class_name(identifier)
-								submit.click()
-							elif attrib == "id":
-								submit = Deep.seleniumBrowser.find_element_by_id(identifier)
-								submit.click()
-							elif attrib == "name":
-								submit = Deep.seleniumBrowser.find_element_by_name(identifier)
-								submit.click()
-							elif attrib == "":
-								print("[-] Could not find a submit button, but wait who makes a form without a submit button maybe you need to be logged in?")
+							if Deep.submit() == False:
+								raise Exception("No input tag, trying button")
 								
-							# elif attrib == "typ":
-							# 		submit = Deep.seleniumBrowser.find_element_by_id(identifier)
-							# 	submit.click()
+											
 						except Exception as e:
+			
 							if "dialog" in str(e):
-								print(Fore.LIGHTRED_EX +  f"[-] Probably Reflected XSS is present on this URL {Deep.site}" +Style.RESET_ALL)
+								print(Fore.GREEN + Style.BRIGHT + f"[-] [{Deep.site}] [{Deep.ThreadName}] Probably Dynamic/Stored XSS is present on this URL {Deep.site}. Payload: {line}" +Style.RESET_ALL)
+								Deep.learn_data.append((line, Deep.text.replace("\n", "").rstrip("\n"), 2))
+								if Deep.accept_alert():
+									continue
 								if Deep.Check_If_Found(5):
 									Deep.current_executor.shutdown()
 									break
-							else:
+							try:
+								Deep.get_submit_button_tag()
+								if Deep.submit() == False:
+									break
+								pass
+
+							except Exception as e:
+								if "element" in str(e).lower():
+									continue
 								print("[Error]: Problem with submitting  " + str(e))
-								break
-							continue
-						noxx = print(Fore.RED + "\r[-] No XSS " + Style.RESET_ALL)
-						WebDriverWait(Deep.seleniumBrowser, 1).until(EC.alert_is_present(),noxx)
-						
-						#TO BE MADE A FUNCTION
-						try:
-							if Deep.seleniumBrowser:
-								alert = Deep.seleniumBrowser.switch_to.alert
-								alert.accept()
-							if alert:
-								Deep.found += 1
-								Deep.Wpayloads.append(line)
-								print(Fore.BLUE + f"[-] [{Deep.site}] Alert Accepted" + Style.RESET_ALL)
-								print(Fore.GREEN + Style.BRIGHT + f"[-] [{Deep.ThreadName}] XSS FOUND in url [- {Deep.site} -]!"+ Style.RESET_ALL)
-								print(Fore.GREEN + Style.BRIGHT + f"[-] [{Deep.ThreadName}] Payload: {str(line)} + URL: {Deep.site}" + Style.RESET_ALL)
-								print(Fore.LIGHTCYAN_EX + Style.BRIGHT  + f"[-] [{Deep.site}] Number of available payloads until now: {str(Deep.found)}"  + "\n"  + Style.RESET_ALL)
-								if Deep.Check_If_Found(5):
-									break
-								Deep.seleniumBrowser.get(Deep.site)
-								Deep.seleniumBrowser.refresh()
-						except Exception as e:
-							if "dialog" in str(e):
-								continue
-							if Deep.seleniumBrowser:	
-								if alert:
-									alert.dismiss()
-									print(Fore.BLUE + Style.BRIGHT + f"[-] [{Deep.site}] Alert Dismissed" + Style.RESET_ALL)
-									if Deep.Check_If_Found(5):
+								try:
+									alert = Deep.seleniumBrowser.switch_to.alert
+									if alert:
+										alert.accept()
+										print(Fore.RED + Style.BRIGHT + f"[-] [{Deep.site}] Alert accepted before load. This indicates signs of Stored XSS check manually! is it a comment section?" + Style.RESET_ALL)
+										continue
+								except Exception as e:
+									print("[Index1]" + str(e))
+									if "Failed to establish a new connection" in str(e):
+										Deep.CloseProgram()
 										break
-								else:
-									print("[Error]: Problem with the alert" + str(e))
-									break
+									try:
+										alert = Deep.seleniumBrowser.switch_to.alert
+										if alert:
+											alert.dismiss()
+											print(Fore.RED + "[-] [{Deep.site}] [{Deep.ThreadName}] There is a persistent alert in the page. May be because of Stored XSS !" + Style.RESET_ALL)
+											continue
+									except:
+											print("err2" + str(e))
+											Deep.CloseProgram()
+											break
+										
+								break
+
+						noxx = print(Fore.RED + f"[-] [{Deep.site}] [{Deep.ThreadName}] No XSS " + Style.RESET_ALL)
+						WebDriverWait(Deep.seleniumBrowser, 1).until(EC.alert_is_present(),noxx)
+						if Deep.accept_alert():
 							continue
 						
 								
 					except Exception as e:
+						if "dialog" in str(e):
+							continue
+						Deep.learn_data.append((line, Deep.text.replace("\n", "").rstrip("\n"), 0))
+
 						if "[Error]" in str(e):
-							print(str(e))
+							print("Something wrong happened! " + str(e))
 							Deep.CloseProgram()
 							break
 							# Deep.Update_Files()
 							# # Deep.current_executor.shutdown()
 							# # break
 							# # return(Deep.Wpayloads)
-						
 						Deep.seleniumBrowser.get(Deep.site)
 						Deep.seleniumBrowser.refresh()
 						continue
@@ -631,9 +609,141 @@ class Deep():
 			else:
 				Deep.CloseProgram()
 		except Exception as e:
-			pass
+			Deep.learn_data.append((Deep.globalLine, Deep.text.replace("\n", "").rstrip("\n"), 0))
+			if "Reached error page" in str(e):
+				print("[Error] [{Deep.site}] [{Deep.ThreadName}] Could not complete excecution the page went down " + str(e))
+				Deep.CloseProgram()
+			elif "alert" in str(e).lower():
+				pass
+			else:
+				print("[testing] error is: " + str(e))
+			Deep.seleniumBrowser.get(Deep.site)
+			Deep.seleniumBrowser.refresh()
 
-
+	
+	@staticmethod
+	def get_submit_button_tag():
+		for htm in Deep.html_element:
+			buttons = htm.find_all("button")
+			for button in buttons:
+				if "submit" in str(button):
+					Deep.attrib = "id"
+					Deep.identifier = button.get("id")
+					if Deep.identifier != None:
+						pass
+						#print(f"Submit id={Deep.identifier}")
+					if Deep.identifier == None:	
+						Deep.attrib = "class"
+						try:
+							Deep.identifier, *_ = button.get("class")
+							#print(f"Submit Class={Deep.identifier}")
+						except:
+							Deep.attrib = "name"
+							try:	
+								Deep.identifier, *_ = button.get("name")
+								#print(f"Submit name={Deep.identifier}")
+							except:
+								Deep.attrib = "value"
+								Deep.identifier = button.get("value")
+								#print(f"Submit value={Deep.identifier}")
+						
+	@staticmethod
+	def get_submit_input_tag():
+		attrib = ''
+		for f in Deep.ptrForms:
+			inputs = f.find_all("input")
+			for i in inputs:
+				if "submit" in str(i):
+					Deep.attrib = "id"
+					Deep.identifier = i.get("id")
+					if Deep.identifier != None:
+						pass
+    					#print(f"Submit id={Deep.identifier}")
+					if Deep.identifier == None:	
+						Deep.attrib = "class"
+						try:
+							Deep.identifier, *_ = i.get("class")
+							#print(f"Submit Class={Deep.identifier}")
+						except:
+							Deep.attrib = "name"
+							try:	
+								Deep.identifier, *_ = i.get("name")
+								#print(f"Submit name={Deep.identifier}")
+							except:
+								Deep.attrib = "value"
+								Deep.identifier = i.get("value")
+								#print(f"Submit value={Deep.identifier}")
+							
+									
+	@staticmethod
+	def submit():
+		if Deep.attrib == "class":
+			# print("clicking in class")
+			submit = Deep.seleniumBrowser.find_element_by_class_name(Deep.identifier)
+			submit.click()
+		
+		elif Deep.attrib == "id":
+			# print("clicking in id")
+			submit = Deep.seleniumBrowser.find_element_by_id(Deep.identifier)
+			submit.click()
+		elif Deep.attrib == "name":
+			# print("clicking in name")
+			submit = Deep.seleniumBrowser.find_element_by_name(Deep.identifier)
+			submit.click()
+		elif Deep.attrib == "value":
+			# print("clicking in value")
+			submit = Deep.seleniumBrowser.find_element_by_css_selector(f"input[value*='{Deep.identifier}']")
+			submit.click()
+		else:
+			return(False)
+	
+	@staticmethod
+	def accept_alert():
+		try:
+			if Deep.seleniumBrowser:
+				alert = Deep.seleniumBrowser.switch_to.alert
+				alert.accept()
+			if alert:
+				Deep.found += 1
+				Deep.Wpayloads.append(Deep.globalLine)
+				print(Fore.BLUE + f"[-] [{Deep.site}] Alert Accepted" + Style.RESET_ALL)
+				print(Fore.GREEN + Style.BRIGHT + f"[-] [{Deep.ThreadName}] XSS FOUND in url [- {Deep.site} -]!"+ Style.RESET_ALL)
+				print(Fore.GREEN + Style.BRIGHT + f"[-] [{Deep.ThreadName}] Payload: {Deep.globalLine} + URL: {Deep.site}" + Style.RESET_ALL)
+				print(Fore.LIGHTCYAN_EX + Style.BRIGHT  + f"[-] [{Deep.site}] Number of available payloads until now: {str(Deep.found)}"  + "\n"  + Style.RESET_ALL)
+				Deep.learn_data.append((Deep.globalLine, Deep.text.replace("\n", "").rstrip("\n"), 1))
+				if Deep.Check_If_Found(5):
+					Deep.CloseProgram()
+				Deep.seleniumBrowser.get(Deep.site)
+				Deep.seleniumBrowser.refresh()
+				return(True)
+		except Exception as e:
+			print("err3" + str(e))
+			if Deep.seleniumBrowser:
+				try:	
+					alert = Deep.seleniumBrowser.switch_to.alert
+					if alert:
+						alert.dismiss()
+						print(Fore.BLUE + Style.BRIGHT + f"[-] [{Deep.site}] Alert Dismissed" + Style.RESET_ALL)
+						if Deep.Check_If_Found(5):
+							Deep.CloseProgram()
+						Deep.seleniumBrowser.get(Deep.site)
+						Deep.seleniumBrowser.refresh()
+						return(True)
+					else:
+						print("[Error]: Problem with the alert" + str(e))
+						Deep.CloseProgram()
+						return(False)
+				except Exception as err:
+					print("Could not dismiss alert" + str(err))
+					return(True)
+	@staticmethod
+	def renew_tor_ip():
+		with Controller.from_port(port=9051) as controller:
+			controller.authenticate(password="Od1n1")
+			controller.signal(Signal.NEWNYM)
+		nTOR_IP = json.loads(Deep.session.get("http://httpbin.org/ip").text)
+		print(Fore.CYAN + "[-] Sloppy, I am covering your back :). New IP" + Fore.BLUE + Style.BRIGHT + f" --> {nTOR_IP['origin']}" + Style.RESET_ALL)
+	
 	@staticmethod
 	def Fuzz_URL_On_Thread():
 
@@ -644,10 +754,13 @@ class Deep():
 
 	@staticmethod
 	def Fuzz_On_Thread():
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			signal.signal(signal.SIGINT, Deep.signal_handler)
-			Deep.current_executor = executor		
-			Deep.current_executor.submit(Deep.Fuzz_Inputs)
+		try:
+			with concurrent.futures.ThreadPoolExecutor() as executor:
+				signal.signal(signal.SIGINT, Deep.signal_handler)
+				Deep.current_executor = executor		
+				Deep.current_executor.submit(Deep.Fuzz_Inputs)
+		except Exception as e:
+			print("[-] Error from Thread" + str(e))
 					
 	@staticmethod
 	def Update_Files():
@@ -667,6 +780,8 @@ class Deep():
 			Deep.seleniumBrowser.quit()
 		if Deep.current_executor != '':
 			Deep.current_executor.shutdown()
+		if Deep.session != '':
+			Deep.session.close()
 		sys.exit(0)
 
 	@staticmethod
@@ -683,6 +798,7 @@ class Deep():
 			return(Deep.Wpayloads)
 		else:
 			return(False)
+	
 	@staticmethod
 	def Print_Results():
 		result = (Fore.BLUE + Style.BRIGHT +

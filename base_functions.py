@@ -1,5 +1,6 @@
 import os
 import colorama
+import pandas as pd
 from colorama import Fore, Back, Style
 colorama.init()
 
@@ -71,3 +72,23 @@ def set_to_file(links, file_name):
         for l in sorted(links):
             f.write(l+"\n")
     print(Fore.LIGHTGREEN_EX + "[-BF Error]: Save File created" + Style.RESET_ALL)
+
+
+# Iterate through a list, each item will be a line in a file
+def list_to_file(data, file_name):
+    if not os.path.isfile(file_name):
+        print(Fore.LIGHTYELLOW_EX + "[-BF Error]: Save File not found. Dont worry it will auto-create from List data!" + Style.RESET_ALL)
+        df = pd.DataFrame(data, columns=["payload", "html", "state"])
+        df.to_csv(file_name, index=False)
+    else:
+        df = pd.DataFrame(data)
+        df.to_csv(file_name, mode='a', header=False, index=False)
+    print(Fore.LIGHTGREEN_EX + "[-BF Error]: Save File created" + Style.RESET_ALL)
+
+def file_to_list(file_name):
+    if not os.path.isfile(file_name):
+        print("[-BF] Could not find file path exiting...")
+
+    headers = ["payload", "text","state"]
+    df = pd.read_csv(file_name)
+    return df

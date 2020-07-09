@@ -9,6 +9,8 @@ import os, signal
 import colorama
 from colorama import Fore, Back, Style
 from spidermain import SpiderMain
+import json
+import requests
 import readline
 
 readline.set_completer_delims(' \t\n=')
@@ -16,20 +18,28 @@ readline.parse_and_bind("tab: complete")
 colorama.init()
 try:
     os.system("cls")
-except:
     os.system("clear")
-print(Fore.GREEN + "XSS Detector " + Style.RESET_ALL + "[- Deep Blue -]  By" + Fore.RED + " (J-0d1N) " + Style.RESET_ALL)
+
+except:
+    pass
+print(Fore.GREEN + "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nXSS Detector " + Style.RESET_ALL + "[- DeeP Blue -]  By" + Fore.RED + " (J-0d1N) " + Style.RESET_ALL)
 print("""
+      
         Welcome to the Deep XSS Vulnerability Scanner """ +
-        Fore.GREEN+' (DXVS)\n' + Style.RESET_ALL +
+        Fore.GREEN+' (DeeP)\n' + Style.RESET_ALL +
         """
         Please choose a fuzzing option for the cross-site scripter:-
-            1) GET
-            2) POST
-            3) Load from file (Automized Tester)
-            4) Spider (Recommended before Automated XSS)
+
+
+            [1] GET
+
+            [2] POST
+
+            [3] Load from file (Automized Tester)
+
+            [4] Spider (Recommended before Automated XSS)
 		""")
-CHOICE = input("[-] DXVS> ")
+CHOICE = input("[-] DeeP> ")
 
 
 NUMBER_OF_THREADS = 0
@@ -40,16 +50,18 @@ tested_linkL = set()
 processes = []
 results = []
 link_list = []
+PROJECT_NAME = ''
 
 #Do the next job(link) in the queue
 def work(page_url):
 
         SITE = page_url
         MODE = 'hl'
-        PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
+        #PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
         print(f"[-] [{current_process().name}] Starting Job with PID [{os.getpid()}]")   
         Deep(CHOICE, SITE, MODE, PROJECT_NAME, TFILE, current_process().name)
         results.append((SITE,  Deep.Print_Results()))
+        print(Fore.GREEN + f"[-] Saved Results {results}" + Style.RESET_ALL)
 
 #Creation of worker threads
 
@@ -98,16 +110,18 @@ def create_workers():
     #             tested_linkL.add(link)   
     #             executor.submit(work, link)    
             #ANOTHER THREADING MECH
-        while not q.empty():
-            link = q.get()
-            if link and link not in tested_linkL:
-                tested_linkL.add(link)
-                if __name__ == "__main__":
-                    signal.signal(signal.SIGINT, signal_handler)
-                    process = Process(target=work,args=(link,))
-                    process.daemon = True
-                    processes.append(process)
-                    process.start()
+    loop_counter = 0
+    while not q.empty():
+        link = q.get()
+        if link and link not in tested_linkL:
+            tested_linkL.add(link)
+            if __name__ == "__main__":
+                signal.signal(signal.SIGINT, signal_handler)
+                process = Process(target=work,args=(link,))
+                process.daemon = True
+                processes.append(process)
+                process.start()
+                loop_counter += 1
         # with Pool(NUMBER_OF_THREADS) as p:
         #     if __name__ == "__main__":
         #         p.map(work, link_list)
@@ -175,11 +189,14 @@ if CHOICE.lower() == "1":
 
 #POST_FUNCTION
 elif CHOICE.lower() == '2':
-    SITE = input("[-] URL for website (Ex. http://example.com/post.php): ")
-    WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
-    PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
-    MODE = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
-    Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
+    try:
+        SITE = input("[-] URL for website (Ex. http://example.com/post.php): ")
+        WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
+        PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
+        MODE = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
+        Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
+    except Exception as e:
+        print("[-] Error in Main" + str(e))
 
 
 #AUTOMATIC FUZZING
@@ -189,6 +206,7 @@ elif CHOICE.lower() == "3":
     PROJECT_NAME = input("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
     MODE = 'hl'
     NUMBER_OF_THREADS = get_cpu_cap()
+    
     getFormLinks()
     create_workers()
     while len(processes):
@@ -201,14 +219,13 @@ elif CHOICE.lower() == "3":
                 worker.terminate()  
                 
                 print(f"[-] Workers Remaining --> {len(processes)}")
-                if len(result) and (len(processes) == 0):
-                    res = dict(result)
-                    print(result)
+                if len(results) and (len(processes) == 0):
+                    res = dict(results)
                     print(res)
                     check_kill_process("firefox-esr")#killing processes to ensure that they are not run in bg
                     check_kill_process("geckodriver")#because seleniumDriver.quit() doesnt always close it idk why
                 break
-
+    print(results)
 
 #SPIDER
 elif CHOICE.lower() == "4":
