@@ -2,9 +2,8 @@
 A Cross-Site Scripting fuzzer that works on modern websites, it can work as a crawler, a GET request, POST request XSS fuzzer.
 
 
-## IMPORTANT
-Project Beta created by Youssef Hany for LEGAL website testing purposes.
-Please make sure you have the appropriate permissions before use.
+## Terms Of Use
+Project Beta created by Youssef Hany for LEGAL website TESTING purposes, Mostly Unknown environment (Black Box). Please make sure you have aquired the appropriate permissions from the organization/individual you are testing on before using it directly on their servers.
 
 
 ## Fuzzing Function
