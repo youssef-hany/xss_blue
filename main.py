@@ -6,6 +6,7 @@ from deepblue import Deep
 from base_functions import *
 import sys
 import os, signal
+import time
 import colorama
 from colorama import Fore, Back, Style
 from spidermain import SpiderMain
@@ -22,10 +23,43 @@ try:
 
 except:
     pass
-print(Fore.GREEN + "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nXSS Detector " + Style.RESET_ALL + "[- DeeP Blue -]  By" + Fore.RED + " (J-0d1N) " + Style.RESET_ALL)
-print("""
+print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+title = (Fore.GREEN + "XSS Detector " + Style.RESET_ALL + "[- DeeP Blue -]  By" + Fore.RED + " (J-0d1N) " + Style.RESET_ALL)
+for l in title:
+    sys.stdout.write(l)
+    sys.stdout.flush()
+    time.sleep(0.05)
+time.sleep(0.5)
+for l in title:
+    sys.stdout.write("\b \b")
+    sys.stdout.flush()
+    time.sleep(0.025)
+time.sleep(1)
+print(Fore.RED + Style.BRIGHT + """
+        
+                      ..:::::::::..
+                  ..:::aad8888888baa:::..
+              .::::d:?88888888888?::8b::::.
+            .:::d8888:?88888888??a888888b:::.
+          .:::d8888888a8888888aa8888888888b:::.
+         ::::dP::::::::88888888888::::::::Yb::::
+        ::::dP:::::::::Y888888888P:::::::::Yb::::
+       ::::d8:::::::::::Y8888888P:::::::::::8b::::
+      .::::88::::::::::::Y88888P::::::::::::88::::.
+      :::::Y8baaaaaaaaaa88P:T:Y88aaaaaaaaaad8P:::::
+      :::::::Y88888888888P::|::Y88888888888P:::::::
+      ::::::::::::::::888:::|:::888::::::::::::::::
+      `:::::::::::::::8888888888888b::::::::::::::'
+       :::::::::::::::88888888888888::::::::::::::
+        ::::::::::::::88888888888888:::::::::::::
+         :::::::::::::88::88::88::88::::::::::::
+          `:::::::::::88::88::88::88::::::::::'
+            `:::::::::8::::8::8::::8::::::::'
+                ``:::::::::::::::::::::::''
+                    ``::::::::::::::''
+
       
-        Welcome to the Deep XSS Vulnerability Scanner """ +
+         """ + Style.RESET_ALL + "Welcome to the Deep XSS Vulnerability Scanner" +
         Fore.GREEN+' (DeeP)\n' + Style.RESET_ALL +
         """
         Please choose a fuzzing option for the cross-site scripter:-
@@ -39,6 +73,8 @@ print("""
 
             [4] Spider (Recommended before Automated XSS)
 		""")
+
+    
 CHOICE = input("[-] DeeP> ")
 
 
