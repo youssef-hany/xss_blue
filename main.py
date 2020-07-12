@@ -28,12 +28,12 @@ title = (Fore.GREEN + "XSS Detector " + Style.RESET_ALL + "[- DeeP Blue -]  By" 
 for l in title:
     sys.stdout.write(l)
     sys.stdout.flush()
-    time.sleep(0.05)
-time.sleep(0.5)
+    time.sleep(0.0125)
+time.sleep(0.25)
 for l in title:
     sys.stdout.write("\b \b")
     sys.stdout.flush()
-    time.sleep(0.025)
+    time.sleep(0.00625)
 time.sleep(1)
 print(Fore.RED + Style.BRIGHT + """
         
@@ -72,10 +72,12 @@ print(Fore.RED + Style.BRIGHT + """
             [3] Load from file (Automized Tester)
 
             [4] Spider (Recommended before Automated XSS)
+
+            [5] Exit
 		""")
 
-    
-CHOICE = input("[-] DeeP> ")
+
+
 
 
 NUMBER_OF_THREADS = 0
@@ -87,6 +89,7 @@ processes = []
 results = []
 link_list = []
 PROJECT_NAME = ''
+
 
 #Do the next job(link) in the queue
 def work(page_url):
@@ -214,64 +217,72 @@ def getFormLinks():
                 except Exception as e:
                     print(e)
                     continue
+while True:
+    try:  
 
-#GET_FUNCTION
-if CHOICE.lower() == "1":
-    SITE = input("[-] Enter URL with parameters (Ex. http://example.com/xss.php?parameter=): ")
-    WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
-    PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
-    MODE = ''
-    Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
+        CHOICE = input("[-] DeeP> ")
+        #GET_FUNCTION
+        if CHOICE.lower() == "1" or CHOICE.lower().startswith("g"):
+            SITE = input("[-] Enter URL with parameters (Ex. http://example.com/xss.php?parameter=): ")
+            WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
+            PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
+            MODE = ''
+            Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
 
-#POST_FUNCTION
-elif CHOICE.lower() == '2':
-    try:
-        SITE = input("[-] URL for website (Ex. http://example.com/post.php): ")
-        WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
-        PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
-        MODE = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
-        Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
-    except Exception as e:
-        print("[-] Error in Main" + str(e))
-
-
-#AUTOMATIC FUZZING
-elif CHOICE.lower() == "3":
-    result = []
-    TFILE = input("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
-    PROJECT_NAME = input("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
-    MODE = 'hl'
-    NUMBER_OF_THREADS = get_cpu_cap()
-    
-    getFormLinks()
-    create_workers()
-    while len(processes):
-        for worker in processes:
-            
-            if not worker.is_alive():
-                print(Style.RESET_ALL + f"[-] [{worker.name}] was TERMINATED!")
-                #result.append((SITE,  Deep.Print_Results()))
-                processes.remove(worker)
-                worker.terminate()  
-                
-                print(f"[-] Workers Remaining --> {len(processes)}")
-                if len(results) and (len(processes) == 0):
-                    res = dict(results)
-                    print(res)
-                    check_kill_process("firefox-esr")#killing processes to ensure that they are not run in bg
-                    check_kill_process("geckodriver")#because seleniumDriver.quit() doesnt always close it idk why
+        #POST_FUNCTION
+        elif CHOICE.lower() == '2' or CHOICE.lower().startswith("p"):
+            try:
+                SITE = input("[-] URL for website (Ex. http://example.com/post.php): ")
+                WFILE = input ("[-] Payload list for fuzzing (Ex. wordlist.txt): ")
+                PROJECT_NAME = SITE.replace('www', '').split('.')[-2].replace('http://', '').replace('https://', '').replace('/', '')
+                MODE = input("[-] Do you wand a Head/Headless launch?[H/HL] Default:[HL]: ")
+                Deep(CHOICE, SITE, MODE, PROJECT_NAME, WFILE)
+            except Exception as e:
+                print("[-] Error in Main" + str(e))
                 break
-    print(results)
-
-#SPIDER
-elif CHOICE.lower() == "4":
-    # TFILE = input ("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
-    # PROJECT_NAME = input ("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
-    # MODE = 'hl'
-    SpiderMain()
-    
-else:
-    print("[-] Wrong option choose Wisely xD")
-    sys.exit(0)
 
 
+        #AUTOMATIC FUZZING
+        elif CHOICE.lower() == "3" or CHOICE.lower().startswith("a"):
+            result = []
+            TFILE = input("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
+            PROJECT_NAME = input("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
+            MODE = 'hl'
+            NUMBER_OF_THREADS = get_cpu_cap()
+            
+            getFormLinks()
+            create_workers()
+            while len(processes):
+                for worker in processes:
+                    
+                    if not worker.is_alive():
+                        print(Style.RESET_ALL + f"[-] [{worker.name}] was TERMINATED!")
+                        #result.append((SITE,  Deep.Print_Results()))
+                        processes.remove(worker)
+                        worker.terminate()  
+                        
+                        print(f"[-] Workers Remaining --> {len(processes)}")
+                        if len(results) and (len(processes) == 0):
+                            res = dict(results)
+                            print(res)
+                            check_kill_process("firefox-esr")#killing processes to ensure that they are not run in bg
+                            check_kill_process("geckodriver")#because seleniumDriver.quit() doesnt always close it idk why
+                        break
+            print(results)
+        #SPIDER
+        elif CHOICE.lower() == "4" or CHOICE.lower().startswith("s"):
+            # TFILE = input ("[-] Payload list for all Threads to use (Ex. wordlist.txt): ")
+            # PROJECT_NAME = input ("[-] Provide project name directory given by crawler (Ex. testwebsite): ")
+            # MODE = 'hl'
+            SpiderMain()
+            
+        else:
+            if CHOICE.lower() == "":
+                pass
+            elif CHOICE.lower().startswith("e") or CHOICE.lower() == "5":
+                break
+            
+            else:
+                print("[-] Wrong option choose Wisely..")
+    except KeyboardInterrupt:
+        print("\n[-] Type 'e','5', 'exit' all exit the program properly!")

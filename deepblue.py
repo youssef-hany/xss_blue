@@ -51,6 +51,8 @@ class Deep():
 	attrib = ''
 	identifier = ''
 	learn_data = []
+	interrupted = False
+
 	def __init__(self, choice, site, mode, project_name, Wfile, ThreadName="Master Thread"):
 
 			Deep.choice = choice
@@ -82,9 +84,11 @@ class Deep():
 	
 	@staticmethod
 	def signal_handler(sig, frame):
+		Deep.interrupted = True
 		print('You pressed Ctrl+C!')
 		try:
-			if input("\r\nReally quit? (y/n)>").lower().startswith('y'):
+			userInput = input("\r\nReally quit? (y/n)>")
+			if userInput.lower().startswith('y'):
 				print('Closing the browser drivers and cleaning up the application!')
 				Deep.CloseProgram()
 				sys.exit(1)
@@ -403,7 +407,8 @@ class Deep():
 		for line in Deep.payloads:
 			time.sleep(.5)
 			Deep.counter += 1
-			print(f"[-] Testing payload [F({Deep.found}) C({Deep.counter})/({len(Deep.payloads)})]: " + line.rstrip())
+			
+			print(Fore.CYAN +  f"[Info]: F({str(Deep.found)}) C({str(Deep.counter)})/({len(Deep.payloads)})" + Fore.GREEN + " Testing Payload: " + Fore.MAGENTA + f" {str(line.rstrip())} " + Style.RESET_ALL)
 			if Deep.found >= 1 and not resume: #can make user decide that number later
 				print(f"[-] Found {Deep.found} working payloads still want to continue fuzzing?")
 				response = input("[-] Y/N [Default:N]: ")
@@ -616,7 +621,8 @@ class Deep():
 			elif "alert" in str(e).lower():
 				pass
 			else:
-				print("[testing] error is: " + str(e))
+				pass
+				#print("[testing] error is: " + str(e))
 			Deep.seleniumBrowser.get(Deep.site)
 			Deep.seleniumBrowser.refresh()
 
@@ -717,7 +723,7 @@ class Deep():
 				Deep.seleniumBrowser.refresh()
 				return(True)
 		except Exception as e:
-			print("err3" + str(e))
+			print("Err3: Maybe alert was already accepted continuing...")
 			if Deep.seleniumBrowser:
 				try:	
 					alert = Deep.seleniumBrowser.switch_to.alert
