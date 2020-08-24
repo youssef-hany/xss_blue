@@ -370,8 +370,9 @@ class Deep():
 					
 				Deep.formdata = dict(formdata)
 			except Exception as e:
-				print(e)
+				#print(e)
 				if "Network is unreachable" in str(e):
+					#print(e)
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] Website Is Unreachable O.O!" + Style.RESET_ALL)
 					Deep.CloseProgram()
 				if "Failed to establish a new connection" in str(e):
@@ -379,7 +380,7 @@ class Deep():
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] Check Internet Connection!" + Style.RESET_ALL)
 					Deep.CloseProgram()
 				else:	
-					print(e)
+					#print(e)
 					print(Fore.RED + f"[-] [{Deep.ThreadName}] No response from url {Deep.site}" + Style.RESET_ALL)
 				#try another thing here before exit
 				if Deep.current_executor:
